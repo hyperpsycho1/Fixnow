@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum RequestStatus {
+  NEW
+  CONTACTED
+  INSPECTION
+  QUOTATION_SENT
+  APPROVED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model ServiceRequest {
+  id            String                @id @default(cuid())
+  reference     String                @unique
+  fullName      String
+  phone         String
+  email         String?
+  serviceSlug   String
+  jobTitle      String?
+  description   String
+  propertyType  String
+  urgency       String
+  address       String
+  city          String
+  district      String
+  locationNotes String?
+  preferredDate DateTime?
+  preferredTime String?
+  consent       Boolean
+  status        RequestStatus         @default(NEW)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  contactLogs   ContactLog[]
+  notifications RequestNotification[]
+  notes         InternalNote[]
+  quotations    Quotation[]
+  job           Job?
+
+  @@index([status, createdAt])
+  @@index([phone])
+}
+
+model ContactLog {
+  id          String         @id @default(cuid())
+  requestId   String
+  request     ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  method      String
+  outcome     String
+  contactedAt DateTime       @default(now())
+}
+
+model RequestNotification {
+  id                String         @id @default(cuid())
+  requestId         String
+  request           ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  channel           String         @default("EMAIL")
+  status            String         @default("PENDING")
+  recipient         String?
+  failureReason     String?
+  providerMessageId String?
+  attemptedAt       DateTime?
+  sentAt            DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([requestId, status])
+}
+
+model InternalNote {
+  id        String         @id @default(cuid())
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime       @default(now())
+}
+
+model Quotation {
+  id                String         @id @default(cuid())
+  requestId         String
+  request           ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  labourCents       Int            @default(0)
+  materialCents     Int            @default(0)
+  transportCents    Int            @default(0)
+  otherCents        Int            @default(0)
+  discountCents     Int            @default(0)
+  status            String         @default("DRAFT")
+  validUntil        DateTime?
+  respondedAt       DateTime?
+  approvalTokenHash String?        @unique
+  createdAt         DateTime       @default(now())
+}
+
+model Job {
+  id               String          @id @default(cuid())
+  requestId        String          @unique
+  request          ServiceRequest  @relation(fields: [requestId], references: [id])
+  status           String          @default("SCHEDULED")
+  scheduledAt      DateTime?
+  finalChargeCents Int             @default(0)
+  directCostCents  Int             @default(0)
+  payments         Payment[]
+  assignments      JobAssignment[]
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  amountCents Int
+  method      String
+  note        String?
+  createdAt   DateTime @default(now())
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model RequestCounter {
+  year  Int @id
+  value Int @default(0)
+}
+
+model Worker {
+  id          String          @id @default(cuid())
+  name        String
+  active      Boolean         @default(true)
+  assignments JobAssignment[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model JobAssignment {
+  id         String   @id @default(cuid())
+  jobId      String
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workerId   String
+  worker     Worker   @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  assignedAt DateTime @default(now())
+
+  @@unique([jobId, workerId])
+  @@index([workerId])
+}

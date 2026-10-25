@@ -1,0 +1,2 @@
+import {RequestForm} from '@/components/request-form'; import {services} from '@/lib/services';
+export default function RequestPage(){return <><section className="page-hero"><div className="wrap"><span className="eyebrow">LET’S GET STARTED</span><h1>Request a service</h1><p>Tell us a little about the job. A FixNow team member will contact you to discuss your needs and the next steps.</p></div></section><section className="page-content wrap"><div className="content-card"><RequestForm services={services}/></div></section></>}
